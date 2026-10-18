@@ -103,6 +103,9 @@
     .result-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; }
     .result-detail { padding: 13px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 13px; }
     .result-detail strong { color: var(--text); }
+    .results-actions { display: grid; gap: 10px; margin-top: 21px; }
+    .results-actions .next { margin-top: 0; }
+    .next.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
     .review-toggle { margin-top: 18px; }
     .answer-review { display: grid; gap: 12px; margin: 16px 0 0; padding: 0; text-align: left; list-style: none; }
     .review-item { min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow-wrap: anywhere; }
@@ -191,7 +194,10 @@
           <div class="result-detail" id="result-detail"></div>
           <button class="next review-toggle" id="review-toggle" type="button" aria-expanded="false" aria-controls="answer-review"><span id="review-label">Review answers</span><span id="review-icon" aria-hidden="true">&darr;</span></button>
           <ol class="answer-review" id="answer-review" aria-label="Answer review" hidden></ol>
-          <button class="next" id="restart">Explore again <span aria-hidden="true">&rarr;</span></button>
+          <div class="results-actions">
+            <button class="next" id="restart">Explore again <span aria-hidden="true">&rarr;</span></button>
+            <button class="next secondary" id="restart-shuffled">Replay shuffled <span aria-hidden="true">&#x21bb;</span></button>
+          </div>
         </div>
       </section>
     </main>
@@ -211,6 +217,7 @@
       { category: "The final frontier", question: "Which spacecraft was the first to enter interstellar space?", options: ["Pioneer 10", "New Horizons", "Voyager 1", "Cassini"], answer: 2, fact: "Voyager 1 crossed the heliopause in 2012, entering the space between stars beyond the Sun's solar-wind bubble." }
     ];
     const $ = (selector) => document.querySelector(selector);
+    let activeQuestions = questions;
     let current = 0;
     let score = 0;
     let answered = false;
@@ -224,14 +231,14 @@
 
     function renderQuestion(focus = false) {
       answered = false;
-      const item = questions[current];
+      const item = activeQuestions[current];
       $("#question-count").innerHTML = `Question <strong>${String(current + 1).padStart(2, "0")}</strong> / 10`;
       $("#category").textContent = item.category;
       $("#question").textContent = item.question;
       $("#feedback").hidden = true;
       $("#feedback").replaceChildren();
       $("#next").disabled = true;
-      $("#next").innerHTML = `${current === questions.length - 1 ? "See my results" : "Next question"} <span aria-hidden="true">&rarr;</span>`;
+      $("#next").innerHTML = `${current === activeQuestions.length - 1 ? "See my results" : "Next question"} <span aria-hidden="true">&rarr;</span>`;
       $("#options").replaceChildren();
       item.options.forEach((text, index) => {
         const button = document.createElement("button");
@@ -256,8 +263,8 @@
     function selectAnswer(index) {
       if (answered || finished) return;
       answered = true;
-      const item = questions[current];
-      selectedAnswers[current] = index;
+      const item = activeQuestions[current];
+      selectedAnswers[questions.indexOf(item)] = index;
       const correct = index === item.answer;
       if (correct) score++;
       $("#score").textContent = `${score} ${score === 1 ? "point" : "points"}`;
@@ -314,8 +321,8 @@
     function renderAnswerReview() {
       const review = $("#answer-review");
       review.replaceChildren();
-      questions.forEach((item, index) => {
-        const selected = selectedAnswers[index];
+      activeQuestions.forEach((item, index) => {
+        const selected = selectedAnswers[questions.indexOf(item)];
         const correct = selected === item.answer;
         const entry = document.createElement("li");
         entry.className = "review-item";
@@ -356,10 +363,19 @@
     });
     $("#next").addEventListener("click", () => {
       if (!answered || finished) return;
-      if (current === questions.length - 1) showResults();
+      if (current === activeQuestions.length - 1) showResults();
       else { current++; renderQuestion(true); }
     });
-    $("#restart").addEventListener("click", () => {
+    function shuffleQuestions(items) {
+      const shuffled = [...items];
+      for (let index = shuffled.length - 1; index > 0; index--) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+      }
+      return shuffled;
+    }
+    function restartQuiz(shuffle = false) {
+      activeQuestions = shuffle ? shuffleQuestions(questions) : questions;
       current = 0; score = 0; finished = false;
       selectedAnswers = Array(questions.length).fill(null);
       $("#score").textContent = "0 points";
@@ -372,7 +388,9 @@
       $("#question-screen").hidden = false;
       updateProgress(0);
       renderQuestion(true);
-    });
+    }
+    $("#restart").addEventListener("click", () => restartQuiz());
+    $("#restart-shuffled").addEventListener("click", () => restartQuiz(true));
     document.addEventListener("keydown", (event) => {
       if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || finished) return;
       if (/^[1-4]$/.test(event.key) && !answered) {
