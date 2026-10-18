@@ -103,6 +103,16 @@
     .result-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; }
     .result-detail { padding: 13px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 13px; }
     .result-detail strong { color: var(--text); }
+    .review-toggle { margin-top: 18px; }
+    .answer-review { display: grid; gap: 12px; margin: 16px 0 0; padding: 0; text-align: left; list-style: none; }
+    .review-item { min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow-wrap: anywhere; }
+    .review-item h3 { margin: 0 0 8px; font-size: 14px; line-height: 1.5; text-align: left; }
+    .review-category { color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .review-status { margin: 0 0 9px; font-size: 12px; font-weight: 750; }
+    .review-status.correct { color: var(--green); }
+    .review-status.incorrect { color: var(--red); }
+    .review-answer, .review-fact { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; text-align: left; }
+    .review-answer strong, .review-fact strong { color: var(--text); }
     .enter { animation: reveal .35s ease; }
     @keyframes float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(2deg); } }
     @keyframes twinkle { from { opacity: .35; } to { opacity: 1; } }
@@ -179,6 +189,8 @@
           <p class="results-description" id="result-description"></p>
           <div class="result-ring"><div class="ring-inner"><div class="result-number"><span id="result-score"></span><small> / 10</small></div><span class="result-label">Correct answers</span></div></div>
           <div class="result-detail" id="result-detail"></div>
+          <button class="next review-toggle" id="review-toggle" type="button" aria-expanded="false" aria-controls="answer-review"><span id="review-label">Review answers</span><span id="review-icon" aria-hidden="true">&darr;</span></button>
+          <ol class="answer-review" id="answer-review" aria-label="Answer review" hidden></ol>
           <button class="next" id="restart">Explore again <span aria-hidden="true">&rarr;</span></button>
         </div>
       </section>
@@ -203,6 +215,7 @@
     let score = 0;
     let answered = false;
     let finished = false;
+    let selectedAnswers = Array(questions.length).fill(null);
 
     function updateProgress(count) {
       $(".progress-fill").style.width = `${count * 10}%`;
@@ -244,6 +257,7 @@
       if (answered || finished) return;
       answered = true;
       const item = questions[current];
+      selectedAnswers[current] = index;
       const correct = index === item.answer;
       if (correct) score++;
       $("#score").textContent = `${score} ${score === 1 ? "point" : "points"}`;
@@ -279,6 +293,7 @@
       finished = true;
       $("#question-screen").hidden = true;
       $("#results").hidden = false;
+      renderAnswerReview();
       $("#question-count").textContent = "All 10 questions explored";
       const reactions = score === 10
         ? ["\u{1F3C6}", "Out of this world!", "A perfect mission. Your space knowledge is truly stellar."]
@@ -296,6 +311,49 @@
       $("#result-title").focus();
     }
 
+    function renderAnswerReview() {
+      const review = $("#answer-review");
+      review.replaceChildren();
+      questions.forEach((item, index) => {
+        const selected = selectedAnswers[index];
+        const correct = selected === item.answer;
+        const entry = document.createElement("li");
+        entry.className = "review-item";
+        const category = document.createElement("div");
+        category.className = "review-category";
+        category.textContent = `Question ${index + 1}: ${item.category}`;
+        const question = document.createElement("h3");
+        question.textContent = item.question;
+        const status = document.createElement("p");
+        status.className = `review-status ${correct ? "correct" : "incorrect"}`;
+        status.textContent = correct ? "Correct" : "Incorrect";
+        const playerAnswer = document.createElement("p");
+        playerAnswer.className = "review-answer";
+        const playerLabel = document.createElement("strong");
+        playerLabel.textContent = "Your answer: ";
+        playerAnswer.append(playerLabel, document.createTextNode(item.options[selected]));
+        const correctAnswer = document.createElement("p");
+        correctAnswer.className = "review-answer";
+        const correctLabel = document.createElement("strong");
+        correctLabel.textContent = "Correct answer: ";
+        correctAnswer.append(correctLabel, document.createTextNode(item.options[item.answer]));
+        const fact = document.createElement("p");
+        fact.className = "review-fact";
+        const factLabel = document.createElement("strong");
+        factLabel.textContent = "Why: ";
+        fact.append(factLabel, document.createTextNode(item.fact));
+        entry.append(category, question, status, playerAnswer, correctAnswer, fact);
+        review.append(entry);
+      });
+    }
+
+    $("#review-toggle").addEventListener("click", () => {
+      const expanded = $("#review-toggle").getAttribute("aria-expanded") === "true";
+      $("#review-toggle").setAttribute("aria-expanded", String(!expanded));
+      $("#review-label").textContent = expanded ? "Review answers" : "Hide answer review";
+      $("#review-icon").textContent = expanded ? "\u2193" : "\u2191";
+      $("#answer-review").hidden = expanded;
+    });
     $("#next").addEventListener("click", () => {
       if (!answered || finished) return;
       if (current === questions.length - 1) showResults();
@@ -303,8 +361,14 @@
     });
     $("#restart").addEventListener("click", () => {
       current = 0; score = 0; finished = false;
+      selectedAnswers = Array(questions.length).fill(null);
       $("#score").textContent = "0 points";
       $("#results").hidden = true;
+      $("#answer-review").hidden = true;
+      $("#review-toggle").setAttribute("aria-expanded", "false");
+      $("#review-label").textContent = "Review answers";
+      $("#review-icon").textContent = "\u2193";
+      $("#answer-review").replaceChildren();
       $("#question-screen").hidden = false;
       updateProgress(0);
       renderQuestion(true);
