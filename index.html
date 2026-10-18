@@ -103,6 +103,9 @@
     .result-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; }
     .result-detail { padding: 13px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 13px; }
     .result-detail strong { color: var(--text); }
+    .results-actions { display: grid; gap: 10px; margin-top: 21px; }
+    .results-actions .next { margin-top: 0; }
+    .next.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
     .enter { animation: reveal .35s ease; }
     @keyframes float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(2deg); } }
     @keyframes twinkle { from { opacity: .35; } to { opacity: 1; } }
@@ -179,7 +182,10 @@
           <p class="results-description" id="result-description"></p>
           <div class="result-ring"><div class="ring-inner"><div class="result-number"><span id="result-score"></span><small> / 10</small></div><span class="result-label">Correct answers</span></div></div>
           <div class="result-detail" id="result-detail"></div>
-          <button class="next" id="restart">Explore again <span aria-hidden="true">&rarr;</span></button>
+          <div class="results-actions">
+            <button class="next" id="restart">Explore again <span aria-hidden="true">&rarr;</span></button>
+            <button class="next secondary" id="restart-shuffled">Replay shuffled <span aria-hidden="true">&#x21bb;</span></button>
+          </div>
         </div>
       </section>
     </main>
@@ -199,6 +205,7 @@
       { category: "The final frontier", question: "Which spacecraft was the first to enter interstellar space?", options: ["Pioneer 10", "New Horizons", "Voyager 1", "Cassini"], answer: 2, fact: "Voyager 1 crossed the heliopause in 2012, entering the space between stars beyond the Sun's solar-wind bubble." }
     ];
     const $ = (selector) => document.querySelector(selector);
+    let activeQuestions = questions;
     let current = 0;
     let score = 0;
     let answered = false;
@@ -211,7 +218,7 @@
 
     function renderQuestion(focus = false) {
       answered = false;
-      const item = questions[current];
+      const item = activeQuestions[current];
       $("#question-count").innerHTML = `Question <strong>${String(current + 1).padStart(2, "0")}</strong> / 10`;
       $("#category").textContent = item.category;
       $("#question").textContent = item.question;
@@ -243,7 +250,7 @@
     function selectAnswer(index) {
       if (answered || finished) return;
       answered = true;
-      const item = questions[current];
+      const item = activeQuestions[current];
       const correct = index === item.answer;
       if (correct) score++;
       $("#score").textContent = `${score} ${score === 1 ? "point" : "points"}`;
@@ -298,17 +305,28 @@
 
     $("#next").addEventListener("click", () => {
       if (!answered || finished) return;
-      if (current === questions.length - 1) showResults();
+      if (current === activeQuestions.length - 1) showResults();
       else { current++; renderQuestion(true); }
     });
-    $("#restart").addEventListener("click", () => {
+    function shuffleQuestions(items) {
+      const shuffled = [...items];
+      for (let index = shuffled.length - 1; index > 0; index--) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+      }
+      return shuffled;
+    }
+    function restartQuiz(shuffle = false) {
+      activeQuestions = shuffle ? shuffleQuestions(questions) : questions;
       current = 0; score = 0; finished = false;
       $("#score").textContent = "0 points";
       $("#results").hidden = true;
       $("#question-screen").hidden = false;
       updateProgress(0);
       renderQuestion(true);
-    });
+    }
+    $("#restart").addEventListener("click", () => restartQuiz());
+    $("#restart-shuffled").addEventListener("click", () => restartQuiz(true));
     document.addEventListener("keydown", (event) => {
       if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || finished) return;
       if (/^[1-4]$/.test(event.key) && !answered) {

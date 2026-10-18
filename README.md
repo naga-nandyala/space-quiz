@@ -16,7 +16,8 @@ and the universe. Select an option with your mouse or use keys **1-4**. Use
 - Mission-control-style question and score readouts with an answer progress bar.
 - Green correct-answer feedback and a red shake for incorrect answers, with
   explanations and the correct answer revealed.
-- Results with accuracy, correct/incorrect totals, an emoji reaction, and replay.
+- Results with accuracy, correct/incorrect totals, an emoji reaction,
+  original-order replay, and shuffled replay.
 - A narrow, responsive layout with an illustrated planet, hex grid, stars,
   and soft nebula glows.
 - Automatic light/dark themes and reduced-motion support.
